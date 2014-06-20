@@ -126,7 +126,7 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 	do {
 
 		if (value == NULL || Z_TYPE_P(value) != IS_STRING) {
-			add_error(errors_table TSRMLS_CC, "value is not a string.");
+			add_error(errors_table TSRMLS_CC, "value is not a string");
 			break;
 		}
 
@@ -135,31 +135,31 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 
 		if (zend_hash_find(schema_table, ZEND_STRS("minLength"), (void **) &info) == SUCCESS) {
 			if (Z_TYPE_PP(info) != IS_LONG){
-				add_error(errors_table TSRMLS_CC, "minLength should be an integer.");
+				add_error(errors_table TSRMLS_CC, "minLength should be an integer");
 				break;
 			}
 			min_length = Z_LVAL_PP(info);
 			if (min_length > len) {
-				add_error(errors_table TSRMLS_CC, "value: '%s' is too short.", str);
+				add_error(errors_table TSRMLS_CC, "value: '%s' is too short", str);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("maxLength"), (void **) &info) == SUCCESS) {
 			if (Z_TYPE_PP(info) != IS_LONG){
-				add_error(errors_table TSRMLS_CC, "maxLength should be an integer.");
+				add_error(errors_table TSRMLS_CC, "maxLength should be an integer");
 				break;
 			}
 			max_length = Z_LVAL_PP(info);
 			if (max_length < len) {
-				add_error(errors_table TSRMLS_CC, "value: '%s' is too long.", str);
+				add_error(errors_table TSRMLS_CC, "value: '%s' is too long", str);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("format"), (void **) &info) == SUCCESS) {
 			if (Z_TYPE_PP(info) != IS_STRING){
-				add_error(errors_table TSRMLS_CC, "max should be an string.");
+				add_error(errors_table TSRMLS_CC, "max should be an string");
 				break;
 			}
 
@@ -223,7 +223,8 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 
 					ZVAL_LONG(match, 0);
 					ZVAL_NULL(subpats);
-					if ((pce_regexp = pcre_get_compiled_regex_cache(ZEND_STRL(pattern) TSRMLS_CC)) == NULL) {
+					if ((pce_regexp = pcre_get_compiled_regex_cache(pattern,strlen(pattern) TSRMLS_CC)) == NULL) {
+	    					add_error(errors_table TSRMLS_CC, "'%s' wrong regex patern", pattern);
 						break;
 					}
 
@@ -232,7 +233,7 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 							0/*flags PREG_OFFSET_CAPTURE*/, 0/* start_offset */ TSRMLS_CC);
 
 					if (Z_LVAL_P(match) < 1) {
-						add_error(errors_table TSRMLS_CC, "'%s' does not match '%s' ", str, pattern);
+						add_error(errors_table TSRMLS_CC, "'%s' does not match pattern", str);
 					} else {
 						is_pass = 1;
 					}
@@ -242,7 +243,7 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 					zval_dtor(subpats);
 					FREE_ZVAL(subpats);
 				} else {
-					add_error(errors_table TSRMLS_CC, "format-regex: pattern is undefined.");
+					add_error(errors_table TSRMLS_CC, "format-regex: pattern is undefined");
 				}
 #endif
 				break;
@@ -309,7 +310,7 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 				break;
 			}
 
-			add_error(errors_table TSRMLS_CC, "format: '%s' is undefined.", format);
+			add_error(errors_table TSRMLS_CC, "format: '%s' is undefined", format);
 			break;
 		}
 
@@ -361,51 +362,51 @@ static zend_bool check_number(HashTable * schema_table, HashTable * errors_table
 	do {
 
 		if (!get_num(&value, &val)) {
-			add_error(errors_table TSRMLS_CC, "value is not a number.");
+			add_error(errors_table TSRMLS_CC, "value is not a number");
 			break;
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("minimum"), (void **) &info) == SUCCESS) {
 
 			if (!get_num(info, &num)){
-				add_error(errors_table TSRMLS_CC, "minimum should be an integer or double.");
+				add_error(errors_table TSRMLS_CC, "minimum should be an integer or double");
 				break;
 			}
 			if (num > val) {
-				add_error(errors_table TSRMLS_CC, "value: %f is less than %f.", val, num);
+				add_error(errors_table TSRMLS_CC, "value: %f is less than %f", val, num);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("maximum"), (void **) &info) == SUCCESS) {
 			if (!get_num(info, &num)){
-				add_error(errors_table TSRMLS_CC, "maximum should be an integer or double.", val, num);
+				add_error(errors_table TSRMLS_CC, "maximum should be an integer or double", val, num);
 				break;
 			}
 			if (num < val) {
-				add_error(errors_table TSRMLS_CC, "value: %f is bigger than %f.", val, num);
+				add_error(errors_table TSRMLS_CC, "value: %f is bigger than %f", val, num);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("exclusiveMinimum"), (void **) &info) == SUCCESS) {
 			if (!get_num(info, &num)){
-				add_error(errors_table TSRMLS_CC, "exclusiveMinimum should be an integer or double.", val, num);
+				add_error(errors_table TSRMLS_CC, "exclusiveMinimum should be an integer or double", val, num);
 				break;
 			}
 			if (num >= val) {
-				add_error(errors_table TSRMLS_CC, "value: %f is less than %f or equal.", val, num);
+				add_error(errors_table TSRMLS_CC, "value: %f is less than %f or equal", val, num);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("exclusiveMaximum"), (void **) &info) == SUCCESS) {
 			if (!get_num(info, &num)){
-				add_error(errors_table TSRMLS_CC, "exclusiveMaximum should be an integer or double.", val, num);
+				add_error(errors_table TSRMLS_CC, "exclusiveMaximum should be an integer or double", val, num);
 				break;
 			}
 			if (num <= val) {
-				add_error(errors_table TSRMLS_CC, "value: %f is bigger than %f or equal.", val, num);
+				add_error(errors_table TSRMLS_CC, "value: %f is bigger than %f or equal", val, num);
 				break;
 			}
 		}
@@ -423,7 +424,7 @@ static zend_bool check_number(HashTable * schema_table, HashTable * errors_table
 static zend_bool check_integer(HashTable * schema_table, HashTable * errors_table, zval * value TSRMLS_DC) {
 	zend_bool is_pass = 0;
 	if (value == NULL || Z_TYPE_P(value) != IS_LONG) {
-		add_error(errors_table TSRMLS_CC, "value is not a integer.");
+		add_error(errors_table TSRMLS_CC, "value is not a integer");
 	} else {
 		is_pass = check_number(schema_table, errors_table, value TSRMLS_CC);
 	}
@@ -436,7 +437,7 @@ static zend_bool check_integer(HashTable * schema_table, HashTable * errors_tabl
 static zend_bool check_bool(HashTable * errors_table, zval * value TSRMLS_DC) {
 	zend_bool is_pass = 0;
 	if (value == NULL || Z_TYPE_P(value) != IS_BOOL) {
-		add_error(errors_table TSRMLS_CC, "value is not a boolean.");
+		add_error(errors_table TSRMLS_CC, "value is not a boolean");
 	} else {
 		is_pass = 1;
 	}
@@ -463,18 +464,18 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 	do {
 
 		if (value == NULL || (Z_TYPE_P(value) != IS_OBJECT && Z_TYPE_P(value) != IS_ARRAY)) {
-			add_error(errors_table TSRMLS_CC, "value is not an object or array.");
+			add_error(errors_table TSRMLS_CC, "value is not an object or array");
 			break;
 		}
 
 		values_prop_table = HASH_OF(value);
 
 		if (values_prop_table == NULL){
-			add_error(errors_table TSRMLS_CC, "value is null.");
+			add_error(errors_table TSRMLS_CC, "value is null");
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("properties"), (void **) &schema_properties) == FAILURE) {
-			add_error(errors_table TSRMLS_CC, "properties:schema properties is undefined.");
+			add_error(errors_table TSRMLS_CC, "properties:schema properties is undefined");
 			break;
 		}
 
@@ -490,13 +491,13 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 
 			if (zend_hash_find(schema_properties_table, key, key_len, (void **) &item_schema) == FAILURE) {
 				is_pass = 0;
-				add_error(errors_table TSRMLS_CC, "schema properties: '%s' is undefined.", key);
-				break;
+				add_error(errors_table TSRMLS_CC, "schema properties: '%s' is undefined", key);
+				continue;
 			}
 
 			if (!php_jsonschema_check_by_type(complex_schemas_table, Z_ARRVAL_PP(item_schema), errors_table, * item TSRMLS_CC)) {
 				is_pass = 0;
-				break;
+				continue;
 			}
 
 		}
@@ -513,7 +514,7 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 						continue;
 					}
 				}
-				add_error(errors_table TSRMLS_CC, "value properties: '%s' is not exist, and it's not a optional property.", key);
+				add_error(errors_table TSRMLS_CC, "value properties: '%s' is not exist, and it's not a optional property", key);
 				break;
 			}
 
@@ -539,37 +540,37 @@ static zend_bool check_array(HashTable * complex_schemas_table, HashTable * sche
 
 	do {
 		if (value == NULL || Z_TYPE_P(value) != IS_ARRAY) {
-			add_error(errors_table TSRMLS_CC, "value is not an array.");
+			add_error(errors_table TSRMLS_CC, "value is not an array");
 			break;
 		}
 
 		value_table = Z_ARRVAL_P(value);
 		if (zend_hash_find(schema_table, ZEND_STRS("items"), (void **) &items_schema) == FAILURE) {
-			add_error(errors_table TSRMLS_CC, "schema: items schema is undefined.");
+			add_error(errors_table TSRMLS_CC, "schema: items schema is undefined");
 			break;
 		}
 
 		size = zend_hash_num_elements(value_table);
 		if (zend_hash_find(schema_table, ZEND_STRS("minItems"), (void **) &info) == SUCCESS) {
 			if (Z_TYPE_PP(info) != IS_LONG){
-				add_error(errors_table TSRMLS_CC, "minItems should be an integer.");
+				add_error(errors_table TSRMLS_CC, "minItems should be an integer");
 				break;
 			}
 			min_items = Z_LVAL_PP(info);
 			if (min_items > size) {
-				add_error(errors_table TSRMLS_CC, "array size: %d is less than %d .", size, min_items);
+				add_error(errors_table TSRMLS_CC, "array size: %d is less than %d ", size, min_items);
 				break;
 			}
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("maxItems"), (void **) &info) == SUCCESS) {
 			if (Z_TYPE_PP(info) != IS_LONG){
-				add_error(errors_table TSRMLS_CC, "maxItems should be an integer.");
+				add_error(errors_table TSRMLS_CC, "maxItems should be an integer");
 				break;
 			}
 			max_items = Z_LVAL_PP(info);
 			if (max_items < size) {
-				add_error(errors_table TSRMLS_CC, "array size: %d is bigger than %d .", size, max_items);
+				add_error(errors_table TSRMLS_CC, "array size: %d is bigger than %d ", size, max_items);
 				break;
 			}
 		}
@@ -757,7 +758,7 @@ PHP_JSONSCHEMA_API zend_bool php_jsonschema_check_by_type(HashTable * complex_sc
 					zend_hash_move_forward_ex(types_tables, &pointer)) {
 
 				if (Z_TYPE_PP(item) != IS_STRING){
-					add_error(errors_table TSRMLS_CC, "type name should be a string.");
+					add_error(errors_table TSRMLS_CC, "type name should be a string");
 					break;
 				}
 
@@ -809,7 +810,7 @@ PHP_JSONSCHEMA_API zend_bool php_jsonschema_check_by_type(HashTable * complex_sc
 				is_pass = 1;
 			} else {
 
-				add_error(errors_table TSRMLS_CC, "type: '%s' is undefined.", type_name);
+				add_error(errors_table TSRMLS_CC, "type: '%s' is undefined", type_name);
 			}
 		}
 	} while (0);
@@ -831,9 +832,9 @@ PHP_JSONSCHEMA_API zend_bool php_jsonschema_check_by_type(HashTable * complex_sc
 		} else {
 
 			if (Z_TYPE_PP(type) == IS_STRING) {
-				add_error(errors_table TSRMLS_CC, "type schema:'%s' is undefined.", Z_STRVAL_PP(type));
+				add_error(errors_table TSRMLS_CC, "type schema:'%s' is undefined", Z_STRVAL_PP(type));
 			} else {
-				add_error(errors_table TSRMLS_CC, "type schema is undefined.");
+				add_error(errors_table TSRMLS_CC, "type schema is undefined");
 			}
 		}
 
@@ -877,7 +878,7 @@ PHP_METHOD(JsonSchema, getSchema) {
 				&value) == FAILURE) {
 
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
-				"Expected parameter: $value .");
+				"Expected parameter: $value");
 	}
 
 	schema = php_jsonschema_get_schema(value TSRMLS_CC);
@@ -899,7 +900,7 @@ PHP_METHOD(JsonSchema, addError) {
 				&msg_str, &msg_len) == FAILURE) {
 
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
-				"Expected parameter: $schema .");
+				"Expected parameter: $schema");
 
 	}
 
@@ -936,12 +937,12 @@ PHP_METHOD(JsonSchema, addType) {
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &type_schema) == FAILURE) {
 
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Expected parameter: $typeSchema .");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Expected parameter: $typeSchema");
 
 	}
 
 	if (type_schema == NULL || Z_TYPE_P(type_schema) != IS_ARRAY) {
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "schema parse error. (PHP 5 >= 5.3.0) see json_last_error(void).");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "schema parse error. (PHP 5 >= 5.3.0) see json_last_error(void)");
 		return;
 	}
 
