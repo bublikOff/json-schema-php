@@ -461,6 +461,9 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 	zval ** item_schema                 = NULL;
 	HashPosition pointer                = NULL;
 
+    zval ** schema_key_properties           = NULL;
+    HashTable * schema_key_properties_table = NULL;
+
 	do {
 
 		if (value == NULL || (Z_TYPE_P(value) != IS_OBJECT && Z_TYPE_P(value) != IS_ARRAY)) {
@@ -509,11 +512,14 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 			zend_hash_get_current_key_ex(schema_properties_table, &key, &key_len, &idx, 0, &pointer);
 
 			if (zend_hash_exists(values_prop_table, key, key_len) == 0) {
-				if (zend_hash_find(schema_properties_table, ZEND_STRS("optional"), (void **) &optional) == SUCCESS) {
-					if (Z_BVAL_PP(optional)) {
-						continue;
-					}
-				}
+                if (zend_hash_find(schema_properties_table, ZEND_STRS(key), (void **) &schema_key_properties) == SUCCESS) {
+                    schema_key_properties_table = Z_ARRVAL_PP(schema_key_properties);
+    				if (zend_hash_find(schema_key_properties_table, ZEND_STRS("optional"), (void **) &optional) == SUCCESS) {
+    					if (Z_BVAL_PP(optional)) {
+    						continue;
+    					}
+    				}
+                }
 				add_error(errors_table TSRMLS_CC, "value properties: '%s' is not exist, and it's not a optional property", key);
 				break;
 			}
