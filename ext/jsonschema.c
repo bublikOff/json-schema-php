@@ -32,6 +32,19 @@
 
 #if HAVE_PCRE || HAVE_BUNDLED_PCRE
 #include "ext/pcre/php_pcre.h"
+
+/* Patterns */
+#define PCRE_PATTERN_DATE_ISO8601   "/^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$/"
+#define PCRE_PATTERN_DATE_DDMMYYYY  "/^(0[1-9]|[12][0-9]|3[01])\\.(0[1-9]|1[012])\\.((19|20)\\d\\d)$/"
+#define PCRE_PATTERN_DATE           "/^((19|20)\\d\\d)-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/"
+#define PCRE_PATTERN_TIME           "/^([01]?[0-9]|2[0-3]):[0-5]0[0-9]:[0-5]0[0-9]/"
+#define PCRE_PATTERN_GUID           "/^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/i"
+#define PCRE_PATTERN_EMAIL          "/^([\\w\\-]+\\@[\\w\\-]+\\.[\\w\\-]+)$/i"
+#define PCRE_PATTERN_CSSCOLOR       "/^#([a-f0-9]{6}|[a-f0-9]{3})$/i"
+#define PCRE_PATTERN_IPV4           "/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/"
+#define PCRE_PATTERN_IPV6           "/^\\s*((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?\\s*$/i"
+#define PCRE_PATTERN_HOST           "/^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$/"
+
 #endif
 
 #include "ext/standard/php_var.h"
@@ -43,6 +56,7 @@
 #define JSON_PRO "json"
 /* private $complextypes array type schema */
 #define COMPLEX_TYPES_PRO "complex_types"
+
 
 /* If you declare any globals in php_jsonschema.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(jsonschema)
@@ -158,6 +172,7 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 		}
 
 		if (zend_hash_find(schema_table, ZEND_STRS("format"), (void **) &info) == SUCCESS) {
+#if HAVE_PCRE || HAVE_BUNDLED_PCRE
 			if (Z_TYPE_PP(info) != IS_STRING){
 				add_error(errors_table TSRMLS_CC, "max should be an string");
 				break;
@@ -165,75 +180,147 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 
 			format = Z_STRVAL_PP(info);
 
+			match   = NULL;
+			subpats = NULL;
+			pce_regexp = NULL;
+
+			ALLOC_INIT_ZVAL(match);
+			ALLOC_INIT_ZVAL(subpats);
+
+			ZVAL_LONG(match, 0);
+			ZVAL_NULL(subpats);
+
+            /* A date in ISO 8601 format */
 			if (strcmp(format, "date-time") == 0) {
-				/**
-				 * date-time  This SHOULD be a date in ISO 8601 format of YYYY-MM-
-				 * DDThh:mm:ssZ in UTC time.  This is the recommended form of date/
-				 * timestamp.
-				 */
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_DATE_ISO8601, strlen(PCRE_PATTERN_DATE_ISO8601) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match date and time format (ISO 8601)", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /* A date in the format of YYYY-MM-DD */
 			if (strcmp(format, "date") == 0) {
-				/**
-				 * date  This SHOULD be a date in the format of YYYY-MM-DD.  It is
-				 * recommended that you use the "date-time" format instead of "date"
-				 * unless you need to transfer only the date part.
-				 */
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_DATE, strlen(PCRE_PATTERN_DATE) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match date format (yyyy-mm-dd)", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /* A date in the format of DD.MM.YYYY */
+			if (strcmp(format, "date-ddmmyyyy") == 0) {
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_DATE_DDMMYYYY, strlen(PCRE_PATTERN_DATE_DDMMYYYY) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match date format (dd.mm.yyyy)", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
+				break;
+			}
+
+
+            /*  A time in the format of hh:mm:ss */
 			if (strcmp(format, "time") == 0) {
-				/**
-				 * time  This SHOULD be a time in the format of hh:mm:ss.  It is
-				 * recommended that you use the "date-time" format instead of "time"
-				 * unless you need to transfer only the time part.
-				 */
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_TIME, strlen(PCRE_PATTERN_TIME) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match 24-hour time format (hh:mm:ss)", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
-			if (strcmp(format, "utc-millisec") == 0) {
-				/**
-				 * utc-millisec  This SHOULD be the difference, measured in
-				 * milliseconds, between the specified time and midnight, 00:00 of
-				 * January 1, 1970 UTC.  The value SHOULD be a number (integer or
-				 * float).
-				 */
+            /* GUID */
+			if (strcmp(format, "guid") == 0) {
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_GUID, strlen(PCRE_PATTERN_GUID) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match GUID format", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /* A regular expression, following the regular expression specification from ECMA 262/Perl 5 */
 			if (strcmp(format, "regex") == 0) {
 
-#if HAVE_PCRE || HAVE_BUNDLED_PCRE
-
-				/**
-				 * regex  A regular expression, following the regular expression
-				 * specification from ECMA 262/Perl 5.
-				 */
-
 				if (zend_hash_find(schema_table, ZEND_STRS("pattern"), (void **) &info) == SUCCESS) {
-					match   = NULL;
-					subpats = NULL;
 
-					pce_regexp = NULL;
 					pattern = Z_STRVAL_PP(info);
 
-					ALLOC_INIT_ZVAL(match);
-					ALLOC_INIT_ZVAL(subpats);
-
-					ZVAL_LONG(match, 0);
-					ZVAL_NULL(subpats);
 					if ((pce_regexp = pcre_get_compiled_regex_cache(pattern,strlen(pattern) TSRMLS_CC)) == NULL) {
 	    					add_error(errors_table TSRMLS_CC, "'%s' wrong regex patern", pattern);
 						break;
 					}
 
-					php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0/* global */,
-							0/* ZEND_NUM_ARGS() >= 4 */,
-							0/*flags PREG_OFFSET_CAPTURE*/, 0/* start_offset */ TSRMLS_CC);
+					php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
 
 					if (Z_LVAL_P(match) < 1) {
-						add_error(errors_table TSRMLS_CC, "'%s' does not match pattern", str);
+						add_error(errors_table TSRMLS_CC, "'%s' does not match regex pattern", str);
 					} else {
 						is_pass = 1;
 					}
@@ -245,72 +332,150 @@ static zend_bool check_string(HashTable * schema_table, HashTable * errors_table
 				} else {
 					add_error(errors_table TSRMLS_CC, "format-regex: pattern is undefined");
 				}
-#endif
+
 				break;
 			}
 
+            /* This is a CSS color (like "#FF0000" or "red" BUT WE SUPPORT ONLY HEX), based on CSS 2.1 [W3C.CR-CSS21-20070719].*/
 			if (strcmp(format, "color") == 0) {
-				/**
-				 * color  This is a CSS color (like "#FF0000" or "red"), based on CSS
-				 * 2.1 [W3C.CR-CSS21-20070719].
-				 */
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_CSSCOLOR, strlen(PCRE_PATTERN_CSSCOLOR) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match CSS color format (e.g. #FFFFFF)", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /*
 			if (strcmp(format, "style") == 0) {
-				/**
+
 				 * style  This is a CSS style definition (like "color: red; background-
 				 * color:#FFF"), based on CSS 2.1 [W3C.CR-CSS21-20070719].
-				 */
+
 				break;
 			}
 
 			if (strcmp(format, "phone") == 0) {
-#if HAVE_PCRE || HAVE_BUNDLED_PCRE
-				/**
 				 * phone  This SHOULD be a phone number (format MAY follow E.123).
 				 * http://en.wikipedia.org/wiki/E.123
-				 */
-#endif
+
 				break;
 			}
 
 			if (strcmp(format, "uri") == 0) {
-				/**
 				 * uri This value SHOULD be a URI..
-				 */
+
 				break;
 			}
+            */
 
+            /* Email address */
 			if (strcmp(format, "email") == 0) {
-				/**
-				 * email  This SHOULD be an email address.
-				 */
+				
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_EMAIL, strlen(PCRE_PATTERN_EMAIL) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match email format", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
-			if (strcmp(format, "ip-address") == 0) {
-				/**
-				 * ip-address  This SHOULD be an ip version 4 address.
-				 */
+            /* An ip version 4 address */
+			if (strcmp(format, "ipv4") == 0 || strcmp(format, "ip-address") == 0) {
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_IPV4, strlen(PCRE_PATTERN_IPV4) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match IPv4 format", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /* An ip version 6 address */
 			if (strcmp(format, "ipv6") == 0) {
-				/**
-				 * ipv6  This SHOULD be an ip version 6 address.
-				 */
+
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_IPV4, strlen(PCRE_PATTERN_IPV4) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match IPv4 format", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
+            /* A host name */
 			if (strcmp(format, "host-name") == 0) {
-				/**
-				 * host-name  This SHOULD be a host-name.
-				 */
+				if ((pce_regexp = pcre_get_compiled_regex_cache(PCRE_PATTERN_HOST, strlen(PCRE_PATTERN_HOST) TSRMLS_CC)) == NULL) {
+					break;
+				}
+
+				php_pcre_match_impl(pce_regexp, str, len, match, subpats, 0, 0, 0, 0 TSRMLS_CC);
+
+				if (Z_LVAL_P(match) < 1) {
+					add_error(errors_table TSRMLS_CC, "'%s' does not match host name format", str);
+				} else {
+					is_pass = 1;
+				}
+
+				zval_dtor(match);
+				FREE_ZVAL(match);
+				zval_dtor(subpats);
+				FREE_ZVAL(subpats);
+
 				break;
 			}
 
 			add_error(errors_table TSRMLS_CC, "format: '%s' is undefined", format);
+#else
+			add_error(errors_table TSRMLS_CC, "No pcre support to process format property");
+#endif
 			break;
 		}
 
@@ -494,7 +659,7 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
 
 			if (zend_hash_find(schema_properties_table, key, key_len, (void **) &item_schema) == FAILURE) {
 				is_pass = 0;
-				add_error(errors_table TSRMLS_CC, "schema properties: '%s' is undefined", key);
+				add_error(errors_table TSRMLS_CC, "Additional properties not allowed: %s", key);
 				continue;
 			}
 
@@ -520,7 +685,7 @@ static zend_bool check_object(HashTable * complex_schemas_table, HashTable * sch
     					}
     				}
                 }
-				add_error(errors_table TSRMLS_CC, "value properties: '%s' is not exist, and it's not a optional property", key);
+				add_error(errors_table TSRMLS_CC, "Missing required property: %s", key);
 				break;
 			}
 
